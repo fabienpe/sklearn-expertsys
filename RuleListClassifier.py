@@ -84,7 +84,7 @@ class RuleListClassifier(BaseEstimator):
             
         if len(self.discretized_features) > 0:
             if self.verbose:
-                print "Warning: non-categorical data found. Trying to discretize. (Please convert categorical values to strings, and/or specify the argument 'undiscretized_features', to avoid this.)"
+                print ("Warning: non-categorical data found. Trying to discretize. (Please convert categorical values to strings, and/or specify the argument 'undiscretized_features', to avoid this.)")
             X = self.discretize(X, y)
             
         return X
@@ -138,7 +138,7 @@ class RuleListClassifier(BaseEstimator):
             itemsets.extend([r[0] for r in fpgrowth(data_neg,supp=self.minsupport,min=self._zmin,max=self.maxcardinality)])
         itemsets = list(set(itemsets))
         if self.verbose:
-            print len(itemsets),'rules mined'
+            print(f'{len(itemsets)} rules mined')
         #Now form the data-vs.-lhs set
         #X[j] is the set of data points that contain itemset j (that is, satisfy rule j)
         X = [ set() for j in range(len(itemsets)+1)]
@@ -173,7 +173,7 @@ class RuleListClassifier(BaseEstimator):
     
     def discretize(self, X, y):
         if self.verbose:
-            print "Discretizing ", self.discretized_features, "..."
+            print("Discretizing ", self.discretized_features, "...")
         D = pd.DataFrame(np.hstack(( X, np.array(y).reshape((len(y), 1)) )), columns=list(self.feature_labels)+["y"])
         self.discretizer = MDLP_Discretizer(dataset=D, class_label="y", features=self.discretized_features)
         

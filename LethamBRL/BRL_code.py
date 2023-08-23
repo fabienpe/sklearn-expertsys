@@ -93,7 +93,7 @@ from numpy import *
 import os,time,json,traceback,sys
 from scipy.special import gammaln
 from scipy.stats import poisson,beta
-import cPickle as Pickle
+import pickle as Pickle
 from collections import defaultdict,Counter
 from fim import fpgrowth #this is PyFIM, available from http://www.borgelt.net/pyfim.html
 
@@ -126,7 +126,7 @@ def topscript():
     permsdic = defaultdict(default_permsdic) #We will store here the MCMC results
     Xtrain,Ytrain,nruleslen,lhs_len,itemsets = get_freqitemsets(fname+'_train',minsupport,maxlhs) #Do frequent itemset mining from the training data
     Xtest,Ytest,Ylabels_test = get_testdata(fname+'_test',itemsets) #Load the demo data
-    print 'Data loaded!'
+    print('Data loaded!')
     
     #Do MCMC
     res,Rhat = run_bdl_multichain_serial(numiters,thinning,alpha,lbda,eta,Xtrain,Ytrain,nruleslen,lhs_len,maxlhs,permsdic,burnin,nchains,[None]*nchains)
@@ -142,19 +142,19 @@ def topscript():
         theta, ci_theta = get_rule_rhs(Xtrain,Ytrain,d_star,alpha,True)
         
         #Print out the point estimate rule
-        print 'antecedent risk (credible interval for risk)'
+        print('antecedent risk (credible interval for risk)')
         for i,j in enumerate(d_star):
-            print itemsets[j],theta[i],ci_theta[i]
+            print(itemsets[j],theta[i],ci_theta[i])
         
         #Evaluate on the demo data
         preds_d_star = preds_d_t(Xtest,Ytest,d_star,theta) #Use d_star to make predictions on the demo data
         accur_d_star = preds_to_acc(preds_d_star,Ylabels_test)#Accuracy of the point estimate
-        print 'accuracy of point estimate',accur_d_star
+        print('accuracy of point estimate',accur_d_star)
     
     ###The full posterior, BRL-post
     preds_fullpost = preds_full_posterior(Xtest,Ytest,Xtrain,Ytrain,permsdic,alpha)
     accur_fullpost = preds_to_acc(preds_fullpost,Ylabels_test) #Accuracy of the full posterior
-    print 'accuracy of full posterior',accur_fullpost
+    print('accuracy of full posterior',accur_fullpost)
     
     return permsdic, d_star, itemsets, theta, ci_theta, preds_d_star, accur_d_star, preds_fullpost, accur_fullpost
 
@@ -174,21 +174,21 @@ def reset_permsdic(permsdic):
 #Run mcmc for each of the chains, IN SERIAL!
 def run_bdl_multichain_serial(numiters,thinning,alpha,lbda,eta,X,Y,nruleslen,lhs_len,maxlhs,permsdic,burnin,nchains,d_inits,verbose=True):
     #Run each chain 
-    t1 = time.clock()
+    t1 = time.process_time()
     if verbose:
-        print 'Starting mcmc chains'
+        print('Starting mcmc chains')
     res = {}
     for n in range(nchains):
         res[n] = mcmcchain(numiters,thinning,alpha,lbda,eta,X,Y,nruleslen,lhs_len,maxlhs,permsdic,burnin,nchains,d_inits[n])
         
     if verbose:
-        print 'Elapsed CPU time',time.clock()-t1
+        print('Elapsed CPU time',time.process_time()-t1)
 
     #Check convergence
     Rhat = gelmanrubin(res)
     
     if verbose:
-        print 'Rhat for convergence:',Rhat
+        print('Rhat for convergence:',Rhat)
     ##plot?
     #plot_chains(res)
     return res,Rhat
@@ -197,7 +197,7 @@ def mcmcchain(numiters,thinning,alpha,lbda,eta,X,Y,nruleslen,lhs_len,maxlhs,perm
     res = {}
     permsdic,res['perms'] = bayesdl_mcmc(numiters,thinning,alpha,lbda,eta,X,Y,nruleslen,lhs_len,maxlhs,permsdic,burnin,None,d_init)
     #Store the permsdic results
-    res['permsdic'] = {perm:list(vals) for perm,vals in permsdic.iteritems() if vals[1]>0}
+    res['permsdic'] = {perm:list(vals) for perm,vals in iter(permsdic.items()) if vals[1]>0}
     #Reset the permsdic
     permsdic = reset_permsdic(permsdic)
     return res
@@ -209,7 +209,7 @@ def gelmanrubin(res):
     phi_bar_j = {}
     for chain in res:
         phi_bar_j[chain] = 0.
-        for val in res[chain]['permsdic'].itervalues():
+        for val in iter(res[chain]['permsdic'].values()):
             phi_bar_j[chain] += val[1]*val[0] #numsamples*log posterior
             n += val[1]
     #And normalize
@@ -229,7 +229,7 @@ def gelmanrubin(res):
     W = 0.
     for chain in res:
         s2_j = 0.
-        for val in res[chain]['permsdic'].itervalues():
+        for val in iter(res[chain]['permsdic'].values()):
             s2_j += val[1]*(val[0] -phi_bar_j[chain])**2
         s2_j = (1./float(n-1))*s2_j
         W += s2_j
@@ -240,7 +240,11 @@ def gelmanrubin(res):
     try:
         Rhat = sqrt(varhat/float(W))
     except RuntimeWarning:
-        print 'RuntimeWarning computing Rhat, W='+str(W)+', B='+str(B)
+        print('RuntimeWarning computing Rhat, W='+str(W)+', B='+str(B))
+        Rhat = 0.
+    except ZeroDivisionError:
+        #TODO: Investigate
+        print("Unexpected division by 0 error")
         Rhat = 0.
     return Rhat
 
@@ -255,7 +259,7 @@ def plot_chains(res):
 def merge_chains(res):
     permsdic = defaultdict(default_permsdic)
     for n in res:
-        for perm,vals in res[n]['permsdic'].iteritems():
+        for perm,vals in iter(res[n]['permsdic'].items()):
             permsdic[perm][0] = vals[0]
             permsdic[perm][1] += vals[1]
     return permsdic
@@ -272,11 +276,11 @@ def get_point_estimate(permsdic,lhs_len,X,Y,alpha,nruleslen,maxlhs,lbda,eta,verb
     #Now compute average
     avglistlen = average(listlens)
     if verbose:
-        print 'Posterior average length:',avglistlen
+        print('Posterior average length:',avglistlen)
     try:
         avgrulesize = average(rulesizes)
         if verbose:
-            print 'Posterior average width:',avgrulesize
+            print('Posterior average width:',avgrulesize)
         #Prepare the intervals
         minlen = int(floor(avglistlen))
         maxlen = int(ceil(avglistlen))
@@ -303,7 +307,7 @@ def get_point_estimate(permsdic,lhs_len,X,Y,alpha,nruleslen,maxlhs,lbda,eta,verb
         d_star = d_ts[likelihds.argmax()]
     except RuntimeWarning:
         #This can happen if all perms are identically [0], or if no soln is found within the len and width bounds (probably the chains didn't converge)
-        print 'No suitable point estimate found'
+        print('No suitable point estimate found')
         d_star = None
     return d_star
 
@@ -343,7 +347,7 @@ def preds_full_posterior(X,Y,Xtrain,Ytrain,permsdic,alpha):
     #this is binary only. The score is the Prob of 1.
     preds = zeros(Y.shape[0])
     postcount = 0. #total number of posterior samples
-    for perm,vals in permsdic.iteritems():
+    for perm,vals in iter(permsdic.items()):
         #We will compute probabilities for this antecedent list d.
         d_t = Pickle.loads(perm)
         permcount = float(vals[1]) #number of copies of this perm in the posterior
@@ -414,7 +418,7 @@ def bayesdl_mcmc(numiters,thinning,alpha,lbda,eta,X,Y,nruleslen,lhs_len,maxlhs,p
             #then we accept the move
             d_t = list(d_star)
             R_t = int(R_star)
-            a_t = str(a_star)
+            a_t = a_star
             #else: pass
         if itr > burnin and itr % thinning == 0:
             ##store
@@ -627,7 +631,7 @@ def get_freqitemsets(fname,minsupport,maxlhs, verbose=True):
         itemsets.extend([r[0] for r in fpgrowth(data_neg,supp=minsupport,max=maxlhs)])
     itemsets = list(set(itemsets))
     if verbose:
-        print len(itemsets),'rules mined'
+        print(len(itemsets),'rules mined')
     #Now form the data-vs.-lhs set
     #X[j] is the set of data points that contain itemset j (that is, satisfy rule j)
     X = [ set() for j in range(len(itemsets)+1)]

@@ -2,7 +2,7 @@ from __future__ import division
 __author__ = 'Victor Ruiz, vmr11@pitt.edu'
 import pandas as pd
 import numpy as np
-from Entropy import entropy, cut_point_information_gain
+from .Entropy import entropy, cut_point_information_gain
 from math import log
 import sys
 import getopt
@@ -41,7 +41,7 @@ class MDLP_Discretizer(object):
             self._features = [f for f in features if f in self._data_raw.columns]  # check if features in dataframe
             missing = set(features) - set(self._features)  # specified columns not in dataframe
             if missing:
-                print 'WARNING: user-specified features %s not in input dataframe' % str(missing)
+                print(f'WARNING: user-specified features {str(missing)} not in input dataframe')
         else:  # then we need to recognize which features are numeric
             numeric_cols = self._data_raw._data.get_numeric_data().items
             self._features = [f for f in numeric_cols if f != class_label]
@@ -50,7 +50,7 @@ class MDLP_Discretizer(object):
 
         #create copy of data only including features to discretize and class
         self._data = self._data_raw.loc[:, self._features + [class_label]]
-        self._data = self._data.convert_objects(convert_numeric=True)
+        self._data = self._data.apply(pd.to_numeric, axis=0)
         #pre-compute all boundary points in dataset
         self._boundaries = self.compute_boundary_points_all_features()
         #initialize feature bins with empty arrays
@@ -231,8 +231,8 @@ class MDLP_Discretizer(object):
                 bin_label_collection[attr] = ['All']
             else:
                 cuts = [-np.inf] + self._cuts[attr] + [np.inf]
-                start_bin_indices = range(0, len(cuts) - 1)
-                bin_labels = ['%s_to_%s' % (str(cuts[i]), str(cuts[i+1])) for i in start_bin_indices]
+                start_bin_indices = list(range(0, len(cuts) - 1))
+                bin_labels = [f'{str(cuts[i])}_to_{str(cuts[i + 1])}' for i in start_bin_indices]
                 bin_label_collection[attr] = bin_labels
                 self._data[attr] = pd.cut(x=self._data[attr].values, bins=cuts, right=False, labels=bin_labels,
                                           precision=6, include_lowest=True)
@@ -250,9 +250,9 @@ class MDLP_Discretizer(object):
         #save bins description
         if out_bins_path:
             with open(out_bins_path, 'w') as bins_file:
-                print>>bins_file, 'Description of bins in file: %s' % out_data_path
+                print(f'Description of bins in file: {out_data_path}', file=bins_file)
                 for attr in self._features:
-                    print>>bins_file, 'attr: %s\n\t%s' % (attr, ', '.join([bin_label for bin_label in bin_label_collection[attr]]))
+                    print(f"attr: {attr}\n\t{', '.join([bin_label for bin_label in bin_label_collection[attr]])}", file=bins_file)
 
 
 
@@ -263,22 +263,22 @@ def main(argv):
     try:
         parameters, _ = getopt.getopt(argv, shortopts='', longopts=['in_path=', 'out_path=', 'features=', 'class_label=', 'return_bins'])
     except:
-        print 'Correct usage: python MDLP.py --in_path=path --out_path=path --features=f1,f2,f3... ' \
-              '--class_label=weather --return_bins'
+        print('Correct usage: python MDLP.py --in_path=path --out_path=path --features=f1,f2,f3... ' \
+              '--class_label=weather --return_bins')
         sys.exit(2)
 
     for opt, value in parameters:
         if opt == '--in_path':
             data_path = value
             if not data_path.endswith('csv') or data_path.endswith('CSV'):
-                print 'Input data must be in csv file format'
+                print('Input data must be in csv file format')
                 sys.exit(2)
-            print 'Input file: %s' % data_path
+            print(f'Input file: {data_path}')
         elif opt == '--out_path':
             out_path_data = value
             if not out_path_data.endswith('csv') or out_path_data.endswith('CSV'):
-                out_path_data = '%s.csv' % out_path_data
-            print 'Output file to be saved at: %s' % out_path_data
+                out_path_data = f'{out_path_data}.csv'
+            print(f'Output file to be saved at: {out_path_data}')
         elif opt == '--features':
             features = re.split(r',', value)
             features = [f for f in features if f]
@@ -289,11 +289,11 @@ def main(argv):
 
     if return_bins:
         bins_name = ''.join(re.split(r'\.', out_path_data)[:-1])
-        out_path_bins = '%s_bins.txt' % bins_name
-        print 'Bins information will be saved at: %s' % out_path_bins
+        out_path_bins = f'{bins_name}_bins.txt'
+        print(f'Bins information will be saved at: {out_path_bins}')
 
     if not class_label:
-        print 'A class label must be specified with the --class_label= option'
+        print('A class label must be specified with the --class_label= option')
         sys.exit(2)
 
     #read input data

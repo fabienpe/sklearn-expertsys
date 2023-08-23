@@ -96,7 +96,7 @@ class SVMBigDataRuleListClassifier(RuleListClassifier):
         
         # take closest training_subset portion of data, preserving class imbalance
         if self.verbose:
-            print "Reduced from", len(X)
+            print("Reduced from", len(X))
         n = int(len(y)*self.training_subset)
         bestidx_ones = np.argsort(dist_ones)
         bestidx_zeros = np.argsort(dist_zeros)
@@ -110,7 +110,7 @@ class SVMBigDataRuleListClassifier(RuleListClassifier):
             X = np.array(X)[keep_idx, :]
         y = np.array(y)[keep_idx].astype(int)
         if self.verbose:
-            print "...to", len(X), " data points"
+            print("...to", len(X), " data points")
             
         X = self._discretize_mixed_data(X, y, undiscretized_features)
         return X, y
